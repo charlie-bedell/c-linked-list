@@ -1,9 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+
 typedef struct Node {
 		int val;
 		struct Node *next;
+		struct Node *prev;
 } Node;
 
 typedef struct List {
@@ -27,17 +29,25 @@ void insertFront(List *l, int value) {
 		if (isEmpty(l)) {
 			newNode->val = value;
 			newNode->next = NULL;
+			newNode->prev = NULL;
 			l->head = newNode;
 		} else {
-			newNode->val = value;
-			newNode->next = l->head;
+			Node *oldHead = l->head;
 			l->head = newNode;
+			newNode->next = oldHead;
+			newNode->prev = NULL;
+			newNode->val = value;
+			oldHead->prev = newNode;
 		}
 	}
 }
 
 Node *getNextNode(Node *n) {
 	return n->next;
+}
+
+Node *getPrevNode(Node *n) {
+	return n->prev;
 }
 
 void insertEnd(List *l, int value) {
@@ -47,14 +57,18 @@ void insertEnd(List *l, int value) {
 		if (isEmpty(l)) {
 			newNode->val = value;
 			newNode->next = NULL;
+			newNode->prev = NULL;
 		} else {
 			Node *current = l->head;
 			while (current->next != NULL) {
 				current = getNextNode(current);
 			}
+			current->next = newNode;
 			newNode->val = value;
 			newNode->next = NULL;
-			current->next = newNode;
+			newNode->prev = current;
+			
+			
 		}
 	}
 }
@@ -66,12 +80,15 @@ void deleteFront(List *l) {
 			Node *n = l->head;
 			l->head = NULL;
 			free(n);
+			l->size--;
 		} else {
-		Node *oldHead = l->head;
-		Node *newHead = l->head->next;
-		l->head = newHead;
-		free(oldHead);
-		l->size--;
+			Node *oldHead = l->head;
+			Node *newHead = oldHead->next;
+			newHead->prev = NULL;
+
+			l->head = newHead;
+			free(oldHead);
+			l->size--;
 		}
 	}
 }
@@ -80,12 +97,10 @@ void deleteEnd(List *l) {
 	// remove last node of list
 	if (!isEmpty(l)) {
 		Node *current = l->head;
-		Node *prev = l->head;
 		while (current->next != NULL) {
-			prev = current;
 			current = current->next;
 		}
-		prev->next = NULL;
+		current->prev->next = NULL;
 		free(current);
 		l->size--;
 	}
@@ -105,17 +120,18 @@ int insertNodeAtLocation(List *l, int index, int value) {
 		return 0;
 	} else {
 		int count = 1;
-		Node *prev = l->head;
 		Node *current = l->head->next;
 		while (count < index) {
-			prev = current;
 			current = current->next;
 			count++;
 		}
 		Node *newNode = (Node *)malloc(sizeof(Node));
 		newNode->val = value;
 		newNode->next = current;
-		prev->next = newNode;
+		newNode->prev = current->prev;
+
+		current->prev->next = newNode; // get prev node to point to new node
+		current->prev = newNode; // overwrite currents' prev node to be new node
 		l->size++;
 		return 0;
 	}
@@ -131,17 +147,18 @@ int removeNode(List *l, int value) {
 		deleteFront(l);
 		return 0;
 	} else {
-		Node *prev = l->head;
 		Node *current = l->head->next;
 		while (current->val != value) {
 			if (current->next == NULL) {
 				printf("node with value %d not found in list", value);
 				return 0;
 			}
-			prev = current;
 			current = current->next;
 		}
-		prev->next = current->next;
+		Node *prevptr = current->prev;
+		Node *nextptr = current->next;
+		prevptr->next = nextptr;
+		nextptr->prev = prevptr;
 		free(current);
 		l->size--;
 		return 0;
@@ -152,12 +169,29 @@ void printLinkedList(List *l) {
 	Node *curr = l->head;
 
 	if (isEmpty(l)) printf("list is empty");
+	
 	printf("the linked list has %d nodes\n\n", l->size);
+	
 	while(curr != NULL) {
-		printf("%d->", curr->val);
+		char sprev[80];
+		char snext[80];
+		if (curr->prev == NULL) {
+			sprintf(sprev, "(%s", "NULL");
+		} else {
+			sprintf(sprev, "->(%d", curr->prev->val);
+		}
+		
+		if (curr->next == NULL) {
+			sprintf(snext, "%s)", "NULL");
+		} else {
+			sprintf(snext, "%d)<-", curr->next->val);
+		}
+		
+		printf("%s<-%d->%s", sprev, curr->val, snext);
 		curr = curr->next;
 	}
-	printf("NULL\n\n");
+	printf("\n\n");
+	
 }
 
 int main(void) {
@@ -165,7 +199,7 @@ int main(void) {
 	printf("Linked list Demo\n\n");
 
 	initList(&linkedList);
-
+	
 	insertFront(&linkedList, 5);
 	insertFront(&linkedList, 3);
 	insertFront(&linkedList, 1);
@@ -173,18 +207,14 @@ int main(void) {
 	insertEnd(&linkedList, 9);
 	insertEnd(&linkedList, 21);
 
-	printf("Current state of list:\n");
-	printLinkedList(&linkedList);
-
 	insertNodeAtLocation(&linkedList, 3, 7);
-	printLinkedList(&linkedList);
 
 	removeNode(&linkedList, 5);
-	printLinkedList(&linkedList);
 
 	deleteEnd(&linkedList);
-	printLinkedList(&linkedList);
 
 	deleteFront(&linkedList);
+
+	printf("Current state of list:\n");
 	printLinkedList(&linkedList);
 }
